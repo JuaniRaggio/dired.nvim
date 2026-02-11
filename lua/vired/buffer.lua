@@ -611,13 +611,26 @@ function M.action_move(bufnr)
     default = default,
     cwd = buf_data.path,
     on_select = function(dest)
-      local dest_is_dir = fs.is_dir(dest)
+      -- Check if user wants to move into a directory (path ends with / or is existing dir)
+      local dest_ends_with_slash = dest:sub(-1) == "/"
+      local dest_clean = dest:gsub("/$", "")
+      local dest_is_dir = fs.is_dir(dest_clean) or dest_ends_with_slash
+
+      -- If destination is meant to be a directory but doesn't exist, create it
+      if dest_ends_with_slash and not fs.exists(dest_clean) then
+        local ok, err = fs.mkdir(dest_clean)
+        if not ok then
+          vim.notify("vired: Failed to create directory: " .. (err or dest_clean), vim.log.levels.ERROR)
+          return
+        end
+        vim.notify("vired: Created directory " .. dest_clean, vim.log.levels.INFO)
+      end
 
       for _, entry in ipairs(entries) do
-        local target = dest
+        local target = dest_clean
         -- If dest is a directory, append filename to move into it
         if dest_is_dir then
-          target = utils.join(dest, entry.name)
+          target = utils.join(dest_clean, entry.name)
         end
 
         local ok, err = undo.rename_with_undo(entry.path, target)
@@ -662,13 +675,26 @@ function M.action_copy(bufnr)
     default = default,
     cwd = buf_data.path,
     on_select = function(dest)
-      local dest_is_dir = fs.is_dir(dest)
+      -- Check if user wants to copy into a directory (path ends with / or is existing dir)
+      local dest_ends_with_slash = dest:sub(-1) == "/"
+      local dest_clean = dest:gsub("/$", "")
+      local dest_is_dir = fs.is_dir(dest_clean) or dest_ends_with_slash
+
+      -- If destination is meant to be a directory but doesn't exist, create it
+      if dest_ends_with_slash and not fs.exists(dest_clean) then
+        local ok, err = fs.mkdir(dest_clean)
+        if not ok then
+          vim.notify("vired: Failed to create directory: " .. (err or dest_clean), vim.log.levels.ERROR)
+          return
+        end
+        vim.notify("vired: Created directory " .. dest_clean, vim.log.levels.INFO)
+      end
 
       for _, entry in ipairs(entries) do
-        local target = dest
+        local target = dest_clean
         -- If dest is a directory, append filename to copy into it
         if dest_is_dir then
-          target = utils.join(dest, entry.name)
+          target = utils.join(dest_clean, entry.name)
         end
 
         local ok, err = undo.copy_with_undo(entry.path, target)
